@@ -8,8 +8,8 @@ use std::ops::{
 };
     
 pub trait FiniteField {
-    const ADD_IDENTITY: Self;
-    const MUL_IDENTITY: Self;
+    const ZERO: Self;
+    const ONE: Self;
 
     fn ffadd(&self, other: Self) -> Self;
     fn ffsub(&self, other: Self) -> Self;
@@ -23,62 +23,79 @@ pub trait FiniteField {
 pub struct U256FFE<const P: U256>(pub U256);
     
 impl<const P: U256> FiniteField for U256FFE<P> {
-    const ADD_IDENTITY: Self = Self(U256([0; 4]));
-    const MUL_IDENTITY: Self = Self(U256([1, 0, 0, 0]));
+    const ZERO: Self = Self(U256([0; 4]));
+    const ONE: Self = Self(U256([1, 0, 0, 0]));
 
     fn ffadd(&self, other: Self) -> Self { U256FFE((self.0 + other.0) % U256::from(P)) }
     fn ffsub(&self, other: Self) -> Self { U256FFE((self.0 + U256::from(P) - other.0) % U256::from(P)) }
 
     fn ffmul(&self, other: Self) -> Self {
-        let mut accumulator = Self::ADD_IDENTITY;
+        let mut result = U256::zero();
 
-        let (bits, adder, base) = if self.0 > other.0 {
-            (256 - other.0.leading_zeros(), self, &other)
-        } else {
-            (256 - self.0.leading_zeros(), &other, self)
-        };
+        let (mut a, mut b) = (self.0, other.0);
 
-        for i in 1..=bits {
-            accumulator <<= 1;
-            if (*base & (1 << (bits - i))).0 != U256::from(0) { accumulator += *adder; }
+        while b != U256::zero() {
+            if b.bit(0) { result = (result + a) % P; }
+
+            a = (a << 1) % P;
+            b >>= 1;
         }
 
-        accumulator % Self(P.into())
+        Self(result)
     }
     
     fn ffdiv(&self, other: Self) -> Self {
-        assert!(P > U256([2, 0, 0, 0]));
+        assert!(P > U256::from(2));
+        assert!(other != Self::ZERO);
+
         *self * other.exp(U256::from(P - 2))
     }
     
     fn ffscale(&self, scalar: U256) -> Self {
-        let mut accumulator = Self::ADD_IDENTITY;
-        let scalar_bits = 256 - scalar.leading_zeros();
+        let mut result = U256::zero();
 
-        for i in 1..=scalar_bits {
-            accumulator <<= 1;
-            if (scalar & U256::from(1 << (scalar_bits - i))) != U256::from(0) { accumulator += self.clone(); }
+        let (mut a, mut b) = (self.0, scalar);
+
+        while b != U256::zero() {
+            if b.bit(0) { result = (result + a) % P }
+
+            a = (a << 1) % P;
+            b >>= 1;
         }
 
-        accumulator % Self(P.into())
+        Self(result)
     }
     
     fn ffexp(&self, scalar: U256) -> Self {
-        let mut accumulator = Self::MUL_IDENTITY;
+        let mut accumulator = Self::ONE;
         let scalar_bits = 256 - scalar.leading_zeros();
 
+
         for i in (0..scalar_bits).rev() {
-            accumulator = Self(accumulator.0.pow(U256::from(2)) % P);
-            if (scalar & U256::from(1 << i)) != U256::from(0) { accumulator = Self((accumulator.0 * self.0) % P); }
+            let full_mul = (accumulator.0.full_mul(accumulator.0) % P).0;
+            accumulator.0 = U256([full_mul[0], full_mul[1], full_mul[2], full_mul[3]]);
+
+            let mask = if i <= 128 {
+                U256::from(1_u128 << i)
+            } else if i <= 192 {
+                U256([0, 0, 1_u64 << (i - 128), 0])
+            } else {
+                U256([0, 0, 0, 1_u64 << (i - 192)])
+            };
+
+            if (scalar & mask) != U256::zero() {
+                let fm = (accumulator.0.full_mul(self.0) % P).0;
+                accumulator.0 = U256([fm[0], fm[1], fm[2], fm[3]]);
+            }
             accumulator = accumulator % Self(P.into())
         }
 
-        accumulator % Self(P.into())
+        accumulator
     }
 }
     
 impl<const P: U256> U256FFE<P> {
-    pub fn new(n: [u64; 4]) -> Self { Self(U256(n)) }
+    pub const fn new(n: [u64; 4]) -> Self { Self(U256(n)) }
     #[inline] pub fn exp(&self, n: U256) -> Self { self.ffexp(n) }
 }
     

@@ -1,19 +1,41 @@
 #[cfg(test)]
 mod tests {
+    use primitive_types::U256;
+
     #[test]
-    fn test() {
-        use primitive_types::U256;
-        use crate::finite_field::U256FFE;
-
-        const MODULUS: U256 = U256([0xffffffffffffffed, 0xffffffffffffffff, 0xffffffffffffffff, 0x7fffffffffffffff]);
-
+    fn finite_field() {
+        use crate::finite_field::*;
         type FFE = U256FFE<MODULUS>;
 
-        let a = FFE::new([0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff]);
-        let b = FFE::new([0x1ff498ea, 0x9541c5d1, 0xd6f9a6c0, 0xe6f89d1f]);
-        let c = FFE::new([14, 0, 0, 0]);
+        const MODULUS: U256 = U256([
+            0xffffffffffffffed, 0xffffffffffffffff, 0xffffffffffffffff, 0x7fffffffffffffff
+        ]);
 
-        //println!("{a:?} * {a:?} = {:?}", a * a);
-        println!("{c:?} * {c:?} = {:?}", c * c);
+
+        let c = FFE::new([0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff]);
+        let a = FFE::new([14, 0, 0, 0]);
+
+        // 1 / x
+        assert_eq!(
+            FFE::ONE / a,
+            FFE::new([0x924924924924923d, 0x4924924924924924, 0x2492492492492492, 0x5249249249249249]),
+        );
+
+        // x * (1 / x)
+        assert_eq!(
+            a * (FFE::ONE / a),
+            FFE::ONE
+        );
+
+        // x * x
+        assert_eq!(a * a, FFE::new([196, 0, 0, 0]));
+
+        let e = U256FFE::<{ U256([2, 0, 0, 0]) }>::new([234, 0, 0, 0]);
+        assert_eq!(e * e, U256FFE::<{ U256([2, 0, 0, 0]) }>::new([0; 4]));
+    }
+
+    #[test]
+    fn ed25519() {
+        use crate::ed25519::*;
     }
 }
