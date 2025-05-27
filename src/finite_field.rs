@@ -2,7 +2,7 @@ use primitive_types::U256;
 use std::ops::{
     Add, AddAssign, Sub, SubAssign,
     Mul, MulAssign, Div, DivAssign,
-    Shl, ShlAssign,
+    Neg, Shl, ShlAssign,
     Rem,
     BitAnd
 };
@@ -100,15 +100,23 @@ impl<const P: U256> U256FFE<P> {
 }
     
 impl<const P: U256> Add<U256FFE<P>> for U256FFE<P> {
-    type Output = U256FFE<P>;
+    type Output = Self;
 
     fn add(self, other: Self) -> Self::Output { self.ffadd(other) }
 }
     
 impl<const P: U256> Sub<U256FFE<P>> for U256FFE<P> {
-    type Output = U256FFE<P>;
+    type Output = Self;
 
     fn sub(self, other: Self) -> Self::Output { self.ffsub(other) }
+}
+
+impl<const P: U256> Neg for U256FFE<P> {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        (Self(P) - self) % Self(P)
+    }
 }
     
 impl<const P: U256> AddAssign<U256FFE<P>> for U256FFE<P> {
@@ -148,7 +156,7 @@ impl<const P: U256> MulAssign<U256> for U256FFE<P> {
 }
     
 impl<const P: U256> Mul<U256FFE<P>> for U256FFE<P> {
-    type Output = U256FFE<P>;
+    type Output = Self;
 
     fn mul(self, other: U256FFE<P>) -> Self::Output { self.ffmul(other) }
 }
@@ -158,7 +166,7 @@ impl<const P: U256> MulAssign<U256FFE<P>> for U256FFE<P> {
 }
     
 impl<const P: U256> Div<U256FFE<P>> for U256FFE<P> {
-    type Output = U256FFE<P>;
+    type Output = Self;
 
     fn div(self, other: U256FFE<P>) -> Self::Output { self.ffdiv(other) }
 }
@@ -176,7 +184,7 @@ impl<const P: U256> Shl<i32> for U256FFE<P> {
 }
     
 impl<const P: U256> BitAnd<U256FFE<P>> for U256FFE<P> {
-    type Output = U256FFE<P>;
+    type Output = Self;
 
     fn bitand(self, other: Self) -> Self::Output {
         Self(self.0 & other.0)
@@ -198,7 +206,7 @@ impl<const P: U256> ShlAssign<i32> for U256FFE<P> {
 }
     
 impl<const P: U256> Rem<U256FFE<P>> for U256FFE<P> {
-    type Output = U256FFE<P>;
+    type Output = Self;
 
     fn rem(self, other: Self) -> Self::Output {
         Self(self.0 % other.0)
