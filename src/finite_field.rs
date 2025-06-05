@@ -75,15 +75,7 @@ impl<const P: U256> FiniteField for U256FFE<P> {
             let full_mul = (accumulator.0.full_mul(accumulator.0) % P).0;
             accumulator.0 = U256([full_mul[0], full_mul[1], full_mul[2], full_mul[3]]);
 
-            let mask = if i <= 128 {
-                U256::from(1_u128 << i)
-            } else if i <= 192 {
-                U256([0, 0, 1_u64 << (i - 128), 0])
-            } else {
-                U256([0, 0, 0, 1_u64 << (i - 192)])
-            };
-
-            if (scalar & mask) != U256::zero() {
+            if (scalar & (U256::from(1u8) << i)) != U256::zero() {
                 let fm = (accumulator.0.full_mul(self.0) % P).0;
                 accumulator.0 = U256([fm[0], fm[1], fm[2], fm[3]]);
             }
